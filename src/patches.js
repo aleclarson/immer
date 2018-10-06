@@ -152,6 +152,11 @@ export function applyPatch(draft, patch) {
             if (Array.isArray(base)) {
                 const index = Number(key)
                 if (!Number.isNaN(index)) {
+                    if (index < 0 || index > base.length) {
+                        throw new Error(
+                            "Invalid array patch: The given index is out of bounds"
+                        )
+                    }
                     if (index === 0) {
                         base.shift()
                         break
