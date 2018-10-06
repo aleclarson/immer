@@ -2,8 +2,8 @@ export {setAutoFreeze, setUseProxies, original} from "./common"
 
 import {applyPatches as applyPatchesImpl} from "./patches"
 import {isProxyable, getUseProxies, NOTHING} from "./common"
-import {produceProxy} from "./proxy"
-import {produceEs5} from "./es5"
+import {produce as produceProxy} from "./proxy"
+import {produce as produceEs5} from "./es5"
 
 /**
  * produce takes a state, and runs a function against it.

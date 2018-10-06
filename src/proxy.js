@@ -78,13 +78,13 @@ function get(state, prop) {
         if (value === state.base[prop] && isProxyable(value))
             // only create proxy if it is not yet a proxy, and not a new object
             // (new objects don't need proxying, they will be processed in finalize anyway)
-            return (state.copy[prop] = createProxy(state, value))
+            return (state.copy[prop] = createDraft(state, value))
         return value
     } else {
         if (has(state.proxies, prop)) return state.proxies[prop]
         const value = state.base[prop]
         if (!isProxy(value) && isProxyable(value))
-            return (state.proxies[prop] = createProxy(state, value))
+            return (state.proxies[prop] = createDraft(state, value))
         return value
     }
 }
@@ -140,9 +140,9 @@ function markChanged(state) {
 }
 
 // creates a proxy for plain objects / arrays
-function createProxy(parentState, base, key) {
+export function createDraft(parentState, base) {
     if (isProxy(base)) throw new Error("Immer bug. Plz report.")
-    const state = createState(parentState, base, key)
+    const state = createState(parentState, base)
     const proxy = Array.isArray(base)
         ? Proxy.revocable([state], arrayTraps)
         : Proxy.revocable(state, objectTraps)
@@ -150,7 +150,7 @@ function createProxy(parentState, base, key) {
     return proxy.proxy
 }
 
-export function produceProxy(baseState, producer, patchListener) {
+export function produce(baseState, producer, patchListener) {
     if (isProxy(baseState)) {
         // See #100, don't nest producers
         const returnValue = producer.call(baseState, baseState)
@@ -162,7 +162,7 @@ export function produceProxy(baseState, producer, patchListener) {
     const inversePatches = patchListener && []
     try {
         // create proxy for root
-        const rootProxy = createProxy(undefined, baseState)
+        const rootProxy = createDraft(undefined, baseState)
         // execute the thunk
         const returnValue = producer.call(rootProxy, rootProxy)
         // and finalize the modified proxy

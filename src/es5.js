@@ -41,7 +41,7 @@ function get(state, prop) {
         // only create a proxy if the value is proxyable, and the value was in the base state
         // if it wasn't in the base state, the object is already modified and we will process it in finalize
         prepareCopy(state)
-        return (state.copy[prop] = createProxy(state, value))
+        return (state.copy[prop] = createDraft(state, value))
     }
     return value
 }
@@ -68,18 +68,6 @@ function prepareCopy(state) {
     if (state.hasCopy) return
     state.hasCopy = true
     state.copy = shallowCopy(state.base)
-}
-
-// creates a proxy for plain objects / arrays
-function createProxy(parent, base) {
-    const proxy = shallowCopy(base)
-    each(base, i => {
-        Object.defineProperty(proxy, "" + i, createPropertyProxy("" + i))
-    })
-    const state = createState(parent, proxy, base)
-    createHiddenProperty(proxy, PROXY_STATE, state)
-    states.push(state)
-    return proxy
 }
 
 function createPropertyProxy(prop) {
@@ -190,7 +178,19 @@ function hasArrayChanges(state) {
     return false
 }
 
-export function produceEs5(baseState, producer, patchListener) {
+// creates a proxy for plain objects / arrays
+export function createDraft(parentState, base) {
+    const proxy = shallowCopy(base)
+    each(base, i => {
+        Object.defineProperty(proxy, "" + i, createPropertyProxy("" + i))
+    })
+    const state = createState(parentState, proxy, base)
+    createHiddenProperty(proxy, PROXY_STATE, state)
+    states.push(state)
+    return proxy
+}
+
+export function produce(baseState, producer, patchListener) {
     if (isProxy(baseState)) {
         // See #100, don't nest producers
         const returnValue = producer.call(baseState, baseState)
@@ -202,7 +202,7 @@ export function produceEs5(baseState, producer, patchListener) {
     const inversePatches = patchListener && []
     try {
         // create proxy for root
-        const rootProxy = createProxy(undefined, baseState)
+        const rootProxy = createDraft(undefined, baseState)
         // execute the thunk
         const returnValue = producer.call(rootProxy, rootProxy)
         // and finalize the modified proxy
