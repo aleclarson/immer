@@ -127,12 +127,12 @@ export function applyPatch(draft, patch) {
                 if (!Number.isNaN(index)) {
                     if (index < 0) {
                         throw new Error(
-                            `Invalid array patch: Cannot add a negative index`
+                            "Invalid array patch: Cannot add a negative index"
                         )
                     }
                     if (index > base.length) {
                         throw new Error(
-                            `Invalid array patch: Adding the given index would create a sparse array`
+                            "Invalid array patch: Adding the given index would create a sparse array"
                         )
                     }
                     if (index === 0) {
