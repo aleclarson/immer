@@ -8,13 +8,25 @@ export type Draft<T> = T extends any[]
         ? DraftArray<T[number]>
         : T extends object ? DraftObject<T> : T
 
-export interface Patch {
-    op: "replace" | "remove" | "add"
-    path: (string | number)[]
-    value?: any
-}
+export type Patch =
+    | {
+          op: "add"
+          path: (string | number)[]
+          value: any
+      }
+    | {
+          op: "replace"
+          path: (string | number)[]
+          value: any
+          origValue: any
+      }
+    | {
+          op: "remove"
+          path: (string | number)[]
+          origValue: any
+      }
 
-export type PatchListener = (patches: Patch[], inversePatches: Patch[]) => void
+export type PatchListener = (patches: Patch[]) => void
 
 export interface IProduce {
     /**

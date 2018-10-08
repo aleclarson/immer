@@ -1,5 +1,3 @@
-import {generatePatches} from "./patches"
-
 export const NOTHING =
     typeof Symbol !== "undefined"
         ? Symbol("immer-nothing")
@@ -95,69 +93,6 @@ export function each(value, cb) {
 
 export function has(thing, prop) {
     return Object.prototype.hasOwnProperty.call(thing, prop)
-}
-
-// given a base object, returns it if unmodified, or return the changed cloned if modified
-export function finalize(base, path, patches, inversePatches) {
-    if (isProxy(base)) {
-        const state = base[PROXY_STATE]
-        if (state.modified === true) {
-            if (state.finalized === true) return state.copy
-            state.finalized = true
-            const result = finalizeObject(
-                useProxies ? state.copy : (state.copy = shallowCopy(base)),
-                state,
-                path,
-                patches,
-                inversePatches
-            )
-            generatePatches(
-                state,
-                path,
-                patches,
-                inversePatches,
-                state.base,
-                result
-            )
-            return result
-        } else {
-            return state.base
-        }
-    }
-    finalizeNonProxiedObject(base)
-    return base
-}
-
-function finalizeObject(copy, state, path, patches, inversePatches) {
-    const base = state.base
-    each(copy, (prop, value) => {
-        if (value !== base[prop]) {
-            // if there was an assignment on this property, we don't need to generate
-            // patches for the subtree
-            const generatePatches = patches && !has(state.assigned, prop)
-            copy[prop] = finalize(
-                value,
-                generatePatches && path.concat(prop),
-                generatePatches && patches,
-                inversePatches
-            )
-        }
-    })
-    return freeze(copy)
-}
-
-function finalizeNonProxiedObject(parent) {
-    // If finalize is called on an object that was not a proxy, it means that it is an object that was not there in the original
-    // tree and it could contain proxies at arbitrarily places. Let's find and finalize them as well
-    if (!isProxyable(parent)) return
-    if (Object.isFrozen(parent)) return
-    each(parent, (i, child) => {
-        if (isProxy(child)) {
-            parent[i] = finalize(child)
-        } else finalizeNonProxiedObject(child)
-    })
-    // always freeze completely new data
-    freeze(parent)
 }
 
 export function verifyReturnValue(returnedValue, proxy, isProxyModified) {

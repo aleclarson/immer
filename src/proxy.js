@@ -57,7 +57,7 @@ arrayTraps.set = function(state, prop, value) {
 
 function createState(parent, base) {
     return {
-        modified: false, // this tree is modified (either this object or one of it's children)
+        modified: false, // this tree is modified (either this object or one of its children)
         assigned: {}, // true: value was assigned to these props, false: was removed
         finalized: false,
         parent,
@@ -159,7 +159,6 @@ export function produceProxy(baseState, producer, patchListener) {
     const previousProxies = proxies
     proxies = []
     const patches = patchListener && []
-    const inversePatches = patchListener && []
     try {
         // create proxy for root
         const rootProxy = createProxy(undefined, baseState)
@@ -178,15 +177,19 @@ export function produceProxy(baseState, producer, patchListener) {
             // Looks like a wrongly modeled reducer
             result = finalize(returnValue)
             if (patches) {
-                patches.push({op: "replace", path: [], value: result})
-                inversePatches.push({op: "replace", path: [], value: baseState})
+                patches.push({
+                    op: "replace",
+                    path: [],
+                    value: result,
+                    origValue: baseState
+                })
             }
         } else {
-            result = finalize(rootProxy, [], patches, inversePatches)
+            result = finalize(rootProxy, [], patches)
         }
         // revoke all proxies
         each(proxies, (_, p) => p.revoke())
-        patchListener && patchListener(patches, inversePatches)
+        patchListener && patchListener(patches)
         return result
     } finally {
         proxies = previousProxies

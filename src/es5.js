@@ -199,7 +199,6 @@ export function produceEs5(baseState, producer, patchListener) {
     const prevStates = states
     states = []
     const patches = patchListener && []
-    const inversePatches = patchListener && []
     try {
         // create proxy for root
         const rootProxy = createProxy(undefined, baseState)
@@ -217,19 +216,23 @@ export function produceEs5(baseState, producer, patchListener) {
                 throw new Error(RETURNED_AND_MODIFIED_ERROR)
             result = finalize(returnValue)
             if (patches) {
-                patches.push({op: "replace", path: [], value: result})
-                inversePatches.push({op: "replace", path: [], value: baseState})
+                patches.push({
+                    op: "replace",
+                    path: [],
+                    value: result,
+                    origValue: baseState
+                })
             }
         } else {
             if (patchListener) markChangesRecursively(rootProxy)
             markChangesSweep() // this one is more efficient if we don't need to know which attributes have changed
-            result = finalize(rootProxy, [], patches, inversePatches)
+            result = finalize(rootProxy, [], patches)
         }
         // make sure all proxies become unusable
         each(states, (_, state) => {
             state.finished = true
         })
-        patchListener && patchListener(patches, inversePatches)
+        patchListener && patchListener(patches)
         return result
     } finally {
         states = prevStates

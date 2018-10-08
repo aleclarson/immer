@@ -4,17 +4,15 @@ export function generatePatches(
     state,
     basepath,
     patches,
-    inversePatches,
     baseValue,
     resultValue
 ) {
     if (patches)
-        if (Array.isArray(baseValue))
+        if (state.isArray)
             generateArrayPatches(
                 state,
                 basepath,
                 patches,
-                inversePatches,
                 baseValue,
                 resultValue
             )
@@ -23,7 +21,6 @@ export function generatePatches(
                 state,
                 basepath,
                 patches,
-                inversePatches,
                 baseValue,
                 resultValue
             )
@@ -33,39 +30,42 @@ export function generateArrayPatches(
     state,
     basepath,
     patches,
-    inversePatches,
     baseValue,
     resultValue
 ) {
     const shared = Math.min(baseValue.length, resultValue.length)
+    for (let i in state.assigned) {
+        if (baseValue[i] !== resultValue[i]) {
+
+        }
+    }
     for (let i = 0; i < shared; i++) {
-        if (state.assigned[i] && baseValue[i] !== resultValue[i]) {
-            const path = basepath.concat(i)
-            patches.push({op: "replace", path, value: resultValue[i]})
-            inversePatches.push({op: "replace", path, value: baseValue[i]})
+        if (state.assigned[i] && ) {
+            patches.push({
+                op: "replace",
+                path: basepath.concat(i),
+                value: resultValue[i],
+                origValue: baseValue[i]
+            })
         }
     }
     if (shared < resultValue.length) {
         // stuff was added
         for (let i = shared; i < resultValue.length; i++) {
-            const path = basepath.concat(i)
-            patches.push({op: "add", path, value: resultValue[i]})
+            patches.push({
+                op: "add",
+                path: basepath.concat(i),
+                value: resultValue[i]
+            })
         }
-        inversePatches.push({
-            op: "replace",
-            path: basepath.concat("length"),
-            value: baseValue.length
-        })
     } else if (shared < baseValue.length) {
         // stuff was removed
-        patches.push({
-            op: "replace",
-            path: basepath.concat("length"),
-            value: resultValue.length
-        })
-        for (let i = shared; i < baseValue.length; i++) {
-            const path = basepath.concat(i)
-            inversePatches.push({op: "add", path, value: baseValue[i]})
+        for (let i = baseValue.length - 1; i >= shared; i++) {
+            patches.push({
+                op: "remove",
+                path: basepath.concat(i),
+                origValue: baseValue[i]
+            })
         }
     }
 }
@@ -74,7 +74,6 @@ function generateObjectPatches(
     state,
     basepath,
     patches,
-    inversePatches,
     baseValue,
     resultValue
 ) {
@@ -86,16 +85,14 @@ function generateObjectPatches(
             : key in baseValue
                 ? "replace"
                 : "add"
+
+        // The key was assigned, but the value didn't change.
         if (origValue === baseValue && op === "replace") return
-        const path = basepath.concat(key)
-        patches.push(op === "remove" ? {op, path} : {op, path, value})
-        inversePatches.push(
-            op === "add"
-                ? {op: "remove", path}
-                : op === "remove"
-                    ? {op: "add", path, value: origValue}
-                    : {op: "replace", path, value: origValue}
-        )
+
+        const patch = {op, path: basepath.concat(key)}
+        if (op !== "remove") patch.value = value
+        if (op !== "add") patch.origValue = origValue
+        patches.push(patch)
     })
 }
 
