@@ -73,21 +73,33 @@ function prepareCopy(state) {
 // creates a proxy for plain objects / arrays
 function createProxy(parent, base) {
     const proxy = shallowCopy(base)
-    each(base, i => {
-        Object.defineProperty(proxy, "" + i, createPropertyProxy("" + i))
-    })
+    if (Array.isArray(base)) {
+        // For arrays, object keys are not preserved.
+        for (let i = 0; i < base.length; i++) {
+            Object.defineProperty(proxy, "" + i, createPropertyProxy("" + i))
+        }
+    } else {
+        const names = Object.getOwnPropertyNames(base)
+        for (let i = 0; i < names.length; i++) {
+            let attrs = Object.getOwnPropertyDescriptor(base, names[i])
+            if (!("get" in attrs)) {
+                attrs = createPropertyProxy(prop, attrs.enumerable)
+                Object.defineProperty(proxy, prop, attrs)
+            }
+        }
+    }
     const state = createState(parent, proxy, base)
     createHiddenProperty(proxy, PROXY_STATE, state)
     states.push(state)
     return proxy
 }
 
-function createPropertyProxy(prop) {
+function createPropertyProxy(prop, enumerable = true) {
     return (
         descriptors[prop] ||
         (descriptors[prop] = {
             configurable: true,
-            enumerable: true,
+            enumerable,
             get() {
                 return get(this[PROXY_STATE], prop)
             },
