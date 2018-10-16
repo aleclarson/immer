@@ -1,4 +1,10 @@
-export {setAutoFreeze, setUseProxies, original, isProxy as isDraft} from "./common"
+export {
+    setAutoFreeze,
+    setHook,
+    setUseProxies,
+    original,
+    isProxy as isDraft
+} from "./common"
 
 import {applyPatches as applyPatchesImpl} from "./patches"
 import {isProxyable, getUseProxies, NOTHING} from "./common"
