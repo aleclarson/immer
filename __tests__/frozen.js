@@ -1,5 +1,4 @@
 "use strict"
-import deepFreeze from "deep-freeze"
 import produce, {setUseProxies, setAutoFreeze} from "../src/immer"
 
 const {isFrozen} = Object
