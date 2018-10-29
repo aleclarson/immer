@@ -1,6 +1,6 @@
 "use strict"
 
-import {measure} from "./measure"
+import {each, cycle, configure, beforeEach} from "persec"
 import produce, {setAutoFreeze, setUseProxies} from "../dist/immer.umd.js"
 import cloneDeep from "lodash.clonedeep"
 import {fromJS} from "immutable"
@@ -10,94 +10,104 @@ import deepFreeze from "deep-freeze"
 console.log("\n# add-data - loading large set of data\n")
 
 const dataSet = require("./data.json")
-const baseState = {
-    data: null
-}
-const frozenBazeState = deepFreeze(cloneDeep(baseState))
+const baseState = {data: null}
 const immutableJsBaseState = fromJS(baseState)
 const seamlessBaseState = Seamless.from(baseState)
 
-measure(
-    "just mutate",
-    () => ({draft: cloneDeep(baseState)}),
-    ({draft}) => {
-        draft.data = dataSet
-    }
-)
+const cases = [
+    baseline,
+    {autoFreeze: false, useProxies: true},
+    {autoFreeze: false, useProxies: false},
+    {autoFreeze: true, useProxies: true},
+    {autoFreeze: true, useProxies: false}
+]
 
-measure(
-    "just mutate, freeze",
-    () => ({draft: cloneDeep(baseState)}),
-    ({draft}) => {
+each(cases, opts => {
+    configure({
+        minSamples: 100,
+        onFinish: () => console.log("")
+    })
+
+    if (typeof opts == "function") {
+        return opts()
+    }
+
+    setAutoFreeze(opts.autoFreeze)
+    setUseProxies(opts.useProxies)
+    const label = `${opts.useProxies ? "proxy" : "es5"} ${
+        opts.autoFreeze ? "(auto freeze)" : ""
+    }`
+
+    let state
+    beforeEach(() => {
+        state = cloneDeep(baseState)
+    })
+
+    cycle(`produce with frozen state - ${label}`, () => {
+        const nextState = produce(deepFreeze(state), draft => {
+            draft.data = dataSet
+        })
+        return nextState
+    })
+
+    cycle(`produce with mutable state - ${label}`, () => {
+        const nextState = produce(state, draft => {
+            draft.data = dataSet
+        })
+        return nextState
+    })
+})
+
+// Testing non-immer things.
+function baseline() {
+    let draft
+
+    cycle("just mutate", () => {
+        draft.data = dataSet
+    }).beforeEach(() => {
+        draft = cloneDeep(baseState)
+    })
+
+    cycle("just mutate, freeze", () => {
         draft.data = dataSet
         deepFreeze(draft)
-    }
-)
-
-measure("handcrafted reducer (no freeze)", () => {
-    const nextState = {
-        ...baseState,
-        data: dataSet
-    }
-})
-
-measure("handcrafted reducer (with freeze)", () => {
-    const nextState = deepFreeze({
-        ...baseState,
-        data: dataSet
+    }).beforeEach(() => {
+        draft = cloneDeep(baseState)
     })
-})
 
-measure("immutableJS", () => {
-    let state = immutableJsBaseState.withMutations(state => {
-        state.setIn(["data"], fromJS(dataSet))
+    cycle("handcrafted reducer (no freeze)", () => {
+        return {
+            ...baseState,
+            data: dataSet
+        }
     })
-})
 
-measure("immutableJS + toJS", () => {
-    let state = immutableJsBaseState
-        .withMutations(state => {
+    cycle("handcrafted reducer (with freeze)", () => {
+        return deepFreeze({
+            ...baseState,
+            data: dataSet
+        })
+    })
+
+    cycle("immutableJS", () => {
+        return immutableJsBaseState.withMutations(state => {
             state.setIn(["data"], fromJS(dataSet))
         })
-        .toJS()
-})
-
-measure("seamless-immutable", () => {
-    seamlessBaseState.set("data", dataSet)
-})
-
-measure("seamless-immutable + asMutable", () => {
-    seamlessBaseState.set("data", dataSet).asMutable({deep: true})
-})
-
-measure("immer (proxy) - without autofreeze", () => {
-    setUseProxies(true)
-    setAutoFreeze(false)
-    produce(baseState, draft => {
-        draft.data = dataSet
     })
-})
 
-measure("immer (proxy) - with autofreeze", () => {
-    setUseProxies(true)
-    setAutoFreeze(true)
-    produce(frozenBazeState, draft => {
-        draft.data = dataSet
+    cycle("immutableJS + toJS", () => {
+        return immutableJsBaseState
+            .withMutations(state => {
+                state.setIn(["data"], fromJS(dataSet))
+            })
+            .toJS()
     })
-})
 
-measure("immer (es5) - without autofreeze", () => {
-    setUseProxies(false)
-    setAutoFreeze(false)
-    produce(baseState, draft => {
-        draft.data = dataSet
+    cycle("seamless-immutable", () => {
+        seamlessBaseState.set("data", dataSet)
     })
-})
 
-measure("immer (es5) - with autofreeze", () => {
-    setUseProxies(false)
-    setAutoFreeze(true)
-    produce(frozenBazeState, draft => {
-        draft.data = dataSet
+    cycle("seamless-immutable + asMutable", () => {
+        seamlessBaseState.set("data", dataSet).asMutable({deep: true})
     })
-})
+}
