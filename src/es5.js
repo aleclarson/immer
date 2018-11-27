@@ -127,7 +127,8 @@ function markChangesSweep() {
 function markChangesRecursively(object) {
     if (!object || typeof object !== "object") return
     const state = object[PROXY_STATE]
-    if (!state) return
+    if (!state || state.marked) return
+    state.marked = true
     const {proxy, base} = state
     if (Array.isArray(object)) {
         if (hasArrayChanges(state)) {
@@ -139,32 +140,30 @@ function markChangesRecursively(object) {
             else
                 for (let i = base.length; i < proxy.length; i++)
                     state.assigned[i] = true
-            each(proxy, (index, child) => {
-                if (!state.assigned[index]) markChangesRecursively(child)
-            })
+
+            // Ensure all drafts in the proxy are marked.
+            for (let i = 0; i < proxy.length; i++) {
+                markChangesRecursively(proxy[i])
+            }
         }
     } else {
-        const {added, removed} = diffKeys(base, proxy)
-        if (added.length > 0 || removed.length > 0) markChanged(state)
-        each(added, (_, key) => {
-            state.assigned[key] = true
+        // Look for added keys.
+        each(Object.keys(proxy), (_, key) => {
+            // The `undefined` check is a fast path for pre-existing keys.
+            if (base[key] === undefined && !has(base, key)) {
+                state.assigned[key] = true
+                markChanged(state)
+            }
+            // Ensure all drafts in the proxy are marked.
+            markChangesRecursively(proxy[key])
         })
-        each(removed, (_, key) => {
-            state.assigned[key] = false
+        // Look for removed keys.
+        each(Object.keys(base), (_, key) => {
+            if (proxy[key] === undefined && !has(proxy, key)) {
+                state.assigned[key] = false
+                markChanged(state)
+            }
         })
-        each(proxy, (key, child) => {
-            if (!state.assigned[key]) markChangesRecursively(child)
-        })
-    }
-}
-
-function diffKeys(from, to) {
-    // TODO: optimize
-    const a = Object.keys(from)
-    const b = Object.keys(to)
-    return {
-        added: b.filter(key => a.indexOf(key) === -1),
-        removed: a.filter(key => b.indexOf(key) === -1)
     }
 }
 
@@ -174,11 +173,9 @@ function hasObjectChanges(state) {
     // Search for added keys. Start at the back, because non-numeric keys
     // are ordered by time of definition on the object.
     const keys = Object.keys(proxy)
-    for (let i = keys.length; i !== 0; ) {
-        const key = keys[--i]
-
+    for (let i = keys.length - 1; i >= 0; i--) {
         // The `undefined` check is a fast path for pre-existing keys.
-        if (base[key] === undefined && !has(base, key)) {
+        if (base[keys[i]] === undefined && !has(base, keys[i])) {
             return true
         }
     }
