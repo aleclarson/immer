@@ -32,6 +32,7 @@ export class Immer {
         assign(this, configDefaults, config)
         this.setUseProxies(this.useProxies)
         this.produce = this.produce.bind(this)
+        this.visited = null
     }
     produce(base, recipe, patchListener) {
         // curried invocation
@@ -63,6 +64,9 @@ export class Immer {
             try {
                 result = recipe.call(baseDraft, baseDraft)
                 this.willFinalize(result, baseDraft, !!patchListener)
+
+                // For detecting circular references.
+                this.visited = []
 
                 // Never generate patches when no listener exists.
                 var patches = patchListener && [],
@@ -100,6 +104,7 @@ export class Immer {
                     }
                 }
             } finally {
+                this.visited = null
                 this.currentScope().forEach(state => state.revoke())
                 this.scopes.pop()
             }
@@ -192,8 +197,14 @@ export class Immer {
             else if (inDraft && is(value, state.base[prop])) {
                 return
             }
-            // Search new objects for unfinalized drafts. Frozen objects should never contain drafts.
-            else if (isDraftable(value) && !Object.isFrozen(value)) {
+            // Search new objects for unfinalized drafts.
+            // Frozen objects should never contain drafts.
+            else if (
+                isDraftable(value) &&
+                !Object.isFrozen(value) &&
+                this.visited.indexOf(value) < 0
+            ) {
+                this.visited.push(value)
                 eachOwn(value, finalizeProperty)
             }
 
