@@ -43,10 +43,13 @@ export interface Patch {
 
 export type PatchListener = (patches: Patch[], inversePatches: Patch[]) => void
 
+/** Used for `void` and `undefined` detection */
 type IsVoidLike<T> = T extends void | undefined ? 1 : 0
 
 /** Converts `nothing` into `undefined` */
-type FromNothing<T> = Nothing extends T ? Exclude<T, Nothing> | undefined : T
+type FromNothing<T> = typeof nothing extends T
+    ? Exclude<T, typeof nothing> | undefined
+    : T
 
 /** The inferred return type of `produce` */
 export type Produced<T, Return> = IsVoidLike<Return> extends 0
@@ -111,16 +114,10 @@ export interface IProduce {
 export const produce: IProduce
 export default produce
 
-/** Use a class type for `nothing` so its type is unique */
-declare class Nothing {
-    // This lets us do `Exclude<T, Nothing>`
-    private _: any
-}
-
 /**
  * The sentinel value returned by producers to replace the draft with undefined.
  */
-export const nothing: Nothing
+export const nothing: unique symbol
 
 /**
  * To let Immer treat your class instances as plain immutable objects
