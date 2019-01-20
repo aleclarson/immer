@@ -1,5 +1,5 @@
 {
-  "name": "immer",
+  "name": "@aleclarson/immer",
   "version": "0.0.0-development",
   "description": "Create your next immutable state by mutating the current one",
   "main": "dist/immer.js",
